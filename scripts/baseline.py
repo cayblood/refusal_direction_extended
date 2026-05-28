@@ -51,6 +51,19 @@ def default_dtype_for_device(device: str) -> str:
     return "float16" if device in {"cuda", "mps"} else "float32"
 
 
+def torch_dtype(dtype: str) -> torch.dtype:
+    """Convert a CLI dtype name into a torch dtype."""
+    match dtype:
+        case "float32":
+            return torch.float32
+        case "float16":
+            return torch.float16
+        case "bfloat16":
+            return torch.bfloat16
+        case _:
+            raise ValueError(f"Unsupported dtype: {dtype}")
+
+
 def format_chat_prompt(
     tokenizer: PreTrainedTokenizerBase, instruction: str
 ) -> str:
@@ -145,12 +158,20 @@ def run_model(
     print(f"Loading on {device} with dtype={dtype}...", flush=True)
 
     try:
-        model = HookedTransformer.from_pretrained(
-            model_name,
-            device=device,
-            dtype=dtype,
-            default_prepend_bos=False,
-        )
+        if dtype == "float32":
+            model = HookedTransformer.from_pretrained(
+                model_name,
+                device=device,
+                dtype=dtype,
+                default_prepend_bos=False,
+            )
+        else:
+            model = HookedTransformer.from_pretrained_no_processing(
+                model_name,
+                device=device,
+                dtype=torch_dtype(dtype),
+                default_prepend_bos=False,
+            )
     except (GatedRepoError, HfHubHTTPError, LocalEntryNotFoundError) as exc:
         print(
             "\nCould not load the model from Hugging Face.\n"
