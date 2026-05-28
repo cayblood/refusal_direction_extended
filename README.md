@@ -13,13 +13,14 @@ Use the Instruct variants for the primary experiments. Refusal behavior is a cha
 
 ## Runtime expectation
 
-GPU-dependent tasks assume an active Colab Pro GPU runtime unless the task name or command explicitly says local. In practice:
+GPU-dependent tasks assume CUDA unless the task name or command explicitly says local. You can run CUDA tasks in Colab Pro, Runpod, or another GPU runtime. In practice:
 
-- `mise baseline` expects CUDA and is intended to run in Colab Pro.
-- `mise gpu-check` verifies the active runtime has CUDA.
+- `mise baseline` expects CUDA in the active shell environment.
+- `mise gpu-check` verifies the active environment has CUDA.
 - `mise baseline-local` is the explicit opt-in for local CPU/MPS/CUDA testing.
+- `mise runpod-*` tasks execute on a configured Runpod pod over SSH.
 
-Model downloads are cached in the active runtime's Hugging Face cache. In Colab, that usually means the runtime cache unless you configure Hugging Face or your notebook to use mounted Drive storage.
+Model downloads are cached in the active runtime's Hugging Face cache. In Colab, that usually means the runtime cache unless you configure Hugging Face or your notebook to use mounted Drive storage. In Runpod, use persistent storage if you want model caches to survive pod replacement.
 
 Use `notebooks/baseline_colab.ipynb` as the Colab Pro entry point for GPU setup, dependency installation, model downloads, and baseline generation.
 
@@ -48,8 +49,17 @@ mise hf-whoami          # show the active Hugging Face account/token status
 mise download-models    # download/cache both Qwen2.5 Instruct models
 mise download-qwen-1_5b # download/cache only Qwen2.5 1.5B Instruct
 mise download-qwen-3b   # download/cache only Qwen2.5 3B Instruct
-mise baseline           # run baseline generations on CUDA / Colab Pro
+mise baseline           # run baseline generations on CUDA in active shell
 mise baseline-local     # explicitly run baseline locally on CPU/MPS/CUDA
+mise runpod-check-config # print configured Runpod connection settings
+mise runpod-sync        # rsync this repository to the Runpod pod
+mise runpod-setup       # install uv and sync dependencies on Runpod
+mise runpod-gpu-check   # verify CUDA on Runpod
+mise runpod-download-models # download/cache models on Runpod
+mise runpod-baseline    # run baseline on Runpod
+mise runpod-all         # sync, setup, download models, and run baseline
+mise runpod-check-ephemeral-config # print API-based pod spec
+mise runpod-ephemeral   # create pod, run baseline, terminate pod
 ```
 
 If `download-models` or `baseline` reports a network or rate-limit error, try `mise hf-login` and rerun the task.
@@ -62,19 +72,21 @@ Ruff is the project linter and formatter. Zed workspace settings in `.zed/settin
 
 Open `notebooks/baseline_colab.ipynb` in Colab, enable a GPU runtime, and run the cells top to bottom. The notebook uses `uv` directly because Colab runtimes are ephemeral and do not need the local `mise` shell integration.
 
-## Direct baseline command
+## Runpod workflow
 
-The `baseline` task runs:
+### Existing pod
 
 ```sh
-mise exec -- uv run python scripts/baseline.py --device cuda
+export RUNPOD_SSH_TARGET=root@203.0.113.10
+export RUNPOD_SSH_PORT=22
+export HF_TOKEN=hf_...
+mise runpod-all
 ```
 
-By default the script runs both Qwen2.5 Instruct models and requires CUDA. Useful options:
+### Ephemeral pod
 
 ```sh
-mise exec -- uv run python scripts/baseline.py --max-new-tokens 256
-mise exec -- uv run python scripts/baseline.py --model Qwen/Qwen2.5-1.5B-Instruct
-mise exec -- uv run python scripts/baseline.py --model Qwen/Qwen2.5-1.5B-Instruct --model Qwen/Qwen2.5-3B-Instruct
-mise exec -- uv run python scripts/baseline.py --allow-local --device cpu --dtype float32
+export RUNPOD_API_KEY=...
+export HF_TOKEN=hf_...
+mise runpod-ephemeral
 ```

@@ -11,8 +11,8 @@ description = "Print Python and core ML package versions"
 run = "uv run python -c \"from importlib.metadata import version; import sys; print('python', sys.version.split()[0]); print('transformer-lens', version('transformer-lens')); print('transformers', version('transformers')); print('datasets', version('datasets')); print('torch', version('torch')); print('ruff', version('ruff'))\""
 
 [tasks.gpu-check]
-description = "Verify the active runtime has CUDA, as expected for Colab Pro tasks"
-run = "uv run python -c \"import torch; assert torch.cuda.is_available(), 'CUDA is unavailable; use a Colab Pro GPU runtime or an explicit *-local task'; print(torch.cuda.get_device_name(0))\""
+description = "Verify the active runtime has CUDA for GPU-dependent tasks"
+run = "uv run python -c \"import torch; assert torch.cuda.is_available(), 'CUDA is unavailable; use a GPU runtime or an explicit *-local task'; print(torch.cuda.get_device_name(0))\""
 
 [tasks.lint]
 description = "Lint Python files with Ruff"
@@ -59,10 +59,46 @@ description = "Alias for download-models"
 depends = ["download-models"]
 
 [tasks.baseline]
-description = "Run baseline generations on CUDA; intended for Colab Pro GPU runtimes"
+description = "Run baseline generations on CUDA in the active runtime"
 depends = ["gpu-check"]
 run = "uv run python scripts/baseline.py --device cuda"
 
 [tasks.baseline-local]
 description = "Run baseline generations locally on CPU/MPS/CUDA intentionally"
 run = "uv run python scripts/baseline.py --allow-local"
+
+[tasks.runpod-check-config]
+description = "Print Runpod SSH configuration derived from environment variables"
+run = "uv run python scripts/runpod.py check-config"
+
+[tasks.runpod-sync]
+description = "Sync this repository to the configured Runpod pod with rsync"
+run = "uv run python scripts/runpod.py sync"
+
+[tasks.runpod-setup]
+description = "Install uv and sync dependencies on the configured Runpod pod"
+run = "uv run python scripts/runpod.py setup"
+
+[tasks.runpod-gpu-check]
+description = "Verify CUDA is available on the configured Runpod pod"
+run = "uv run python scripts/runpod.py gpu-check"
+
+[tasks.runpod-download-models]
+description = "Download/cache both Qwen2.5 models on the configured Runpod pod"
+run = "uv run python scripts/runpod.py download-models"
+
+[tasks.runpod-baseline]
+description = "Run baseline generations on the configured Runpod pod"
+run = "uv run python scripts/runpod.py baseline"
+
+[tasks.runpod-all]
+description = "Sync, set up, download models, and run baseline on Runpod"
+run = "uv run python scripts/runpod.py all"
+
+[tasks.runpod-check-ephemeral-config]
+description = "Print Runpod API pod spec derived from environment variables"
+run = "uv run python scripts/runpod.py check-ephemeral-config"
+
+[tasks.runpod-ephemeral]
+description = "Create a Runpod pod, run baseline, then terminate it"
+run = "uv run python scripts/runpod.py ephemeral"
