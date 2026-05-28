@@ -32,6 +32,7 @@ DEFAULT_CONTAINER_DISK_GB = 40
 DEFAULT_MIN_VCPU = 4
 DEFAULT_MIN_MEMORY_GB = 24
 DEFAULT_SSH_PRIVATE_PORT = 22
+DEFAULT_GPU_VERIFY_TIMEOUT_SECONDS = 180
 # These must match Runpod GPU IDs exactly:
 # https://docs.runpod.io/references/gpu-types
 DEFAULT_GPU_TYPE_IDS = [
@@ -90,6 +91,12 @@ class RunpodConfig:
 
 
 @dataclass(frozen=True)
+class CreatedPod:
+    id: str
+    requested_gpu_type_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class EphemeralPodSpec:
     api_key: str
     gpu_type_ids: tuple[str, ...]
@@ -102,6 +109,7 @@ class EphemeralPodSpec:
     min_memory_gb: int
     ssh_private_port: int
     wait_timeout_seconds: int
+    gpu_verify_timeout_seconds: int
     keep_pod: bool
 
     @classmethod
@@ -141,6 +149,12 @@ class EphemeralPodSpec:
             ),
             wait_timeout_seconds=int(
                 os.environ.get("RUNPOD_WAIT_TIMEOUT_SECONDS", "900")
+            ),
+            gpu_verify_timeout_seconds=int(
+                os.environ.get(
+                    "RUNPOD_GPU_VERIFY_TIMEOUT_SECONDS",
+                    DEFAULT_GPU_VERIFY_TIMEOUT_SECONDS,
+                )
             ),
             keep_pod=os.environ.get("RUNPOD_KEEP_POD", "").lower()
             in {"1", "true", "yes"},
@@ -222,8 +236,8 @@ def rest_request(
     return json.loads(response_body)
 
 
-def create_pod(spec: EphemeralPodSpec) -> str:
-    print("Trying Runpod GPU types:", flush=True)
+def create_pod(spec: EphemeralPodSpec) -> CreatedPod:
+    print("Requesting Runpod GPU types:", flush=True)
     for gpu_type_id in spec.gpu_type_ids:
         print(f"  - {gpu_type_id}", flush=True)
 
@@ -245,12 +259,19 @@ def create_pod(spec: EphemeralPodSpec) -> str:
     }
     pod = rest_request(spec.api_key, "POST", "/pods", pod_input)
     pod_id = pod["id"]
-    gpu = pod.get("gpu") or {}
-    print(
-        f"Created Runpod pod: {pod_id} using {gpu.get('id', 'unknown GPU')}",
-        flush=True,
-    )
-    return pod_id
+    observed_gpu = pod_gpu_type_id(pod)
+    if observed_gpu and not any(
+        same_gpu_type_id(observed_gpu, gpu_type_id)
+        for gpu_type_id in spec.gpu_type_ids
+    ):
+        terminate_pod(spec.api_key, pod_id)
+        raise RuntimeError(
+            "Runpod created a pod with an unexpected GPU type: "
+            f"{observed_gpu!r}; requested one of {list(spec.gpu_type_ids)!r}"
+        )
+
+    print(f"Created Runpod pod: {pod_id}; verifying assigned GPU", flush=True)
+    return CreatedPod(id=pod_id, requested_gpu_type_ids=spec.gpu_type_ids)
 
 
 def terminate_pod(api_key: str, pod_id: str) -> None:
@@ -260,6 +281,62 @@ def terminate_pod(api_key: str, pod_id: str) -> None:
 
 def get_pod(api_key: str, pod_id: str) -> dict[str, Any]:
     return rest_request(api_key, "GET", f"/pods/{pod_id}")
+
+
+def normalized_gpu_type_id(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
+def same_gpu_type_id(left: str, right: str) -> bool:
+    return normalized_gpu_type_id(left) == normalized_gpu_type_id(right)
+
+
+def pod_gpu_type_id(pod: dict[str, Any]) -> str | None:
+    machine = pod.get("machine") or {}
+    machine_gpu_type = machine.get("gpuType") or {}
+    gpu = pod.get("gpu") or {}
+
+    for value in (
+        machine.get("gpuTypeId"),
+        machine_gpu_type.get("id"),
+        gpu.get("id"),
+    ):
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def verify_requested_gpu(
+    spec: EphemeralPodSpec, pod_id: str, requested_gpu_type_ids: Sequence[str]
+) -> None:
+    deadline = time.monotonic() + spec.gpu_verify_timeout_seconds
+    last_observed_gpu = None
+
+    while time.monotonic() < deadline:
+        pod = get_pod(spec.api_key, pod_id)
+        observed_gpu = pod_gpu_type_id(pod)
+        last_observed_gpu = observed_gpu or last_observed_gpu
+        if observed_gpu and any(
+            same_gpu_type_id(observed_gpu, gpu_type_id)
+            for gpu_type_id in requested_gpu_type_ids
+        ):
+            print(f"Verified Runpod GPU: {observed_gpu}", flush=True)
+            return
+        if observed_gpu:
+            raise RuntimeError(
+                "Runpod assigned an unexpected GPU type: "
+                f"{observed_gpu!r}; requested one of "
+                f"{list(requested_gpu_type_ids)!r}"
+            )
+
+        print("Waiting for Runpod GPU assignment to be reported", flush=True)
+        time.sleep(10)
+
+    raise RuntimeError(
+        "Runpod did not report one of the requested GPU types before the "
+        f"verification timeout. Requested: {list(requested_gpu_type_ids)!r}; "
+        f"observed: {last_observed_gpu or 'unknown GPU'}"
+    )
 
 
 def ssh_connection_from_pod(
@@ -408,15 +485,16 @@ def run_all(config: RunpodConfig, extra_args: Sequence[str]) -> None:
 
 def run_ephemeral(extra_args: Sequence[str]) -> None:
     spec = EphemeralPodSpec.from_env()
-    pod_id = create_pod(spec)
+    pod = create_pod(spec)
     try:
-        config = wait_for_ssh(spec, pod_id)
+        verify_requested_gpu(spec, pod.id, pod.requested_gpu_type_ids)
+        config = wait_for_ssh(spec, pod.id)
         run_all(config, extra_args)
     finally:
         if spec.keep_pod:
-            print(f"Keeping Runpod pod for debugging: {pod_id}", flush=True)
+            print(f"Keeping Runpod pod for debugging: {pod.id}", flush=True)
         else:
-            terminate_pod(spec.api_key, pod_id)
+            terminate_pod(spec.api_key, pod.id)
 
 
 def parse_args() -> argparse.Namespace:

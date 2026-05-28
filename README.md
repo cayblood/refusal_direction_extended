@@ -9,7 +9,7 @@ The primary experiment uses:
 - `Qwen/Qwen2.5-1.5B-Instruct`
 - `Qwen/Qwen2.5-3B-Instruct`
 
-Use the Instruct variants for the primary experiments. Refusal behavior is a chat/instruction-tuning behavior, so Instruct models are the right default for reproducing harmful-vs-benign refusal activations. Qwen is public on Hugging Face, so it is also a good substitute while waiting for Meta Llama access approval.
+Use the Instruct variants for the primary experiments. Refusal behavior is a chat/instruction-tuning behavior, so Instruct models are the right default for reproducing harmful-vs-benign refusal activations.
 
 ## Runtime expectation
 
