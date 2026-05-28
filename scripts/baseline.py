@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from collections.abc import Iterable
 from typing import cast
 
@@ -83,7 +84,12 @@ def generate_examples(
     tokenizer = cast(PreTrainedTokenizerBase, model.tokenizer)
 
     for label, instruction in instructions:
+        print(f"\n## {label.upper()}", flush=True)
+        print(f"Instruction: {instruction}", flush=True)
+        print("Generating...", flush=True)
+
         prompt = format_chat_prompt(tokenizer, instruction)
+        start_time = time.monotonic()
         generated = model.generate(
             prompt,
             max_new_tokens=max_new_tokens,
@@ -92,12 +98,12 @@ def generate_examples(
             prepend_bos=False,
             verbose=False,
         )
+        elapsed = time.monotonic() - start_time
         completion = strip_prompt(cast(str, generated), prompt)
 
-        print(f"\n## {label.upper()}")
-        print(f"Instruction: {instruction}")
-        print("Completion:")
-        print(completion)
+        print(f"Completed in {elapsed:.1f}s", flush=True)
+        print("Completion:", flush=True)
+        print(completion, flush=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -135,8 +141,8 @@ def parse_args() -> argparse.Namespace:
 def run_model(
     model_name: str, device: str, dtype: str, max_new_tokens: int
 ) -> int:
-    print(f"\n# MODEL: {model_name}")
-    print(f"Loading on {device} with dtype={dtype}...")
+    print(f"\n# MODEL: {model_name}", flush=True)
+    print(f"Loading on {device} with dtype={dtype}...", flush=True)
 
     try:
         model = HookedTransformer.from_pretrained(
@@ -157,6 +163,7 @@ def run_model(
         )
         return 1
 
+    print("Model loaded. Running baseline prompts...", flush=True)
     generate_examples(model, PROMPTS.items(), max_new_tokens)
     del model
     if device == "cuda":
