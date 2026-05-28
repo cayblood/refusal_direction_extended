@@ -1,0 +1,68 @@
+[tools]
+python = "3.12"
+uv = "latest"
+
+[tasks.setup]
+description = "Sync Python dependencies into the active environment"
+run = "uv sync"
+
+[tasks.check-env]
+description = "Print Python and core ML package versions"
+run = "uv run python -c \"from importlib.metadata import version; import sys; print('python', sys.version.split()[0]); print('transformer-lens', version('transformer-lens')); print('transformers', version('transformers')); print('datasets', version('datasets')); print('torch', version('torch')); print('ruff', version('ruff'))\""
+
+[tasks.gpu-check]
+description = "Verify the active runtime has CUDA, as expected for Colab Pro tasks"
+run = "uv run python -c \"import torch; assert torch.cuda.is_available(), 'CUDA is unavailable; use a Colab Pro GPU runtime or an explicit *-local task'; print(torch.cuda.get_device_name(0))\""
+
+[tasks.lint]
+description = "Lint Python files with Ruff"
+run = "uv run ruff check ."
+
+[tasks.lint-fix]
+description = "Lint Python files with Ruff and apply safe fixes"
+run = "uv run ruff check . --fix"
+
+[tasks.format]
+description = "Format Python files with Ruff"
+run = "uv run ruff format ."
+
+[tasks.format-check]
+description = "Check Python formatting with Ruff without modifying files"
+run = "uv run ruff format . --check"
+
+[tasks.check]
+description = "Run project checks that do not download models or require GPU"
+depends = ["lint", "format-check"]
+
+[tasks.hf-login]
+description = "Log in to Hugging Face; optional for public Qwen models, useful for rate limits"
+run = "uv run hf auth login"
+
+[tasks.hf-whoami]
+description = "Show the active Hugging Face account/token status"
+run = "uv run hf auth whoami"
+
+[tasks.download-qwen-1_5b]
+description = "Download/cache Qwen2.5 1.5B Instruct in the active runtime"
+run = "uv run hf download Qwen/Qwen2.5-1.5B-Instruct --repo-type model"
+
+[tasks.download-qwen-3b]
+description = "Download/cache Qwen2.5 3B Instruct in the active runtime"
+run = "uv run hf download Qwen/Qwen2.5-3B-Instruct --repo-type model"
+
+[tasks.download-models]
+description = "Download/cache both Qwen2.5 Instruct models in the active runtime"
+depends = ["download-qwen-1_5b", "download-qwen-3b"]
+
+[tasks.download-model]
+description = "Alias for download-models"
+depends = ["download-models"]
+
+[tasks.baseline]
+description = "Run baseline generations on CUDA; intended for Colab Pro GPU runtimes"
+depends = ["gpu-check"]
+run = "uv run python scripts/baseline.py --device cuda"
+
+[tasks.baseline-local]
+description = "Run baseline generations locally on CPU/MPS/CUDA intentionally"
+run = "uv run python scripts/baseline.py --allow-local"

@@ -78,4 +78,3 @@ mise exec -- uv run python scripts/baseline.py --model Qwen/Qwen2.5-1.5B-Instruc
 mise exec -- uv run python scripts/baseline.py --model Qwen/Qwen2.5-1.5B-Instruct --model Qwen/Qwen2.5-3B-Instruct
 mise exec -- uv run python scripts/baseline.py --allow-local --device cpu --dtype float32
 ```
-# refusal_direction_extended
