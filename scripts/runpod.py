@@ -749,6 +749,12 @@ def prepare_datasets(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     ssh(config, in_project(config, command.strip()))
 
 
+def smoke_datasets(config: RunpodConfig, extra_args: Sequence[str]) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = f"uv run python scripts/smoke_datasets.py {joined_args}"
+    ssh(config, in_project(config, command.strip()))
+
+
 def exec_remote(config: RunpodConfig, command: str) -> None:
     ssh(config, in_project(config, command))
 
@@ -904,6 +910,9 @@ def parse_args() -> argparse.Namespace:
     prepare_datasets_parser = subparsers.add_parser("prepare-datasets")
     prepare_datasets_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
 
+    smoke_datasets_parser = subparsers.add_parser("smoke-datasets")
+    smoke_datasets_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
+
     all_parser = subparsers.add_parser("all")
     all_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
 
@@ -943,6 +952,8 @@ def main() -> int:
                 baseline(RunpodConfig.from_env(), args.extra_args)
             case "prepare-datasets":
                 prepare_datasets(RunpodConfig.from_env(), args.extra_args)
+            case "smoke-datasets":
+                smoke_datasets(RunpodConfig.from_env(), args.extra_args)
             case "all":
                 run_all(RunpodConfig.from_env(), args.extra_args)
             case "exec":

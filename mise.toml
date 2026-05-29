@@ -62,6 +62,10 @@ depends = ["download-models"]
 description = "Prepare AdvBench/Alpaca refusal-direction datasets locally"
 run = "uv run python scripts/prepare_datasets.py"
 
+[tasks.smoke-datasets]
+description = "Run a short local generation smoke test on prepared datasets"
+run = "uv run python scripts/smoke_datasets.py"
+
 [tasks.baseline]
 description = "Run baseline generations on CUDA in the active runtime"
 depends = ["gpu-check"]
@@ -94,6 +98,10 @@ run = "uv run python scripts/runpod.py download-models"
 [tasks.runpod-prepare-datasets]
 description = "Prepare AdvBench/Alpaca refusal-direction datasets on the configured Runpod pod"
 run = "uv run python scripts/runpod.py prepare-datasets"
+
+[tasks.runpod-smoke-datasets]
+description = "Run a short generation smoke test on prepared datasets on Runpod"
+run = "uv run python scripts/runpod.py smoke-datasets"
 
 [tasks.runpod-baseline]
 description = "Run baseline generations on the configured Runpod pod"
