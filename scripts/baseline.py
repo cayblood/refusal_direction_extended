@@ -1,7 +1,8 @@
 """Baseline generation for refusal-direction experiments.
 
-Loads Qwen2.5 Instruct models through TransformerLens, formats prompts with each
-model tokenizer's chat template, and generates harmful/benign sanity checks.
+Loads Llama 3.2 Instruct models through TransformerLens, formats prompts with
+each model tokenizer's chat template, and generates harmful/benign sanity
+checks.
 """
 
 from __future__ import annotations
@@ -22,8 +23,8 @@ from transformer_lens import HookedTransformer
 from transformers import PreTrainedTokenizerBase
 
 DEFAULT_MODELS = [
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "Qwen/Qwen2.5-3B-Instruct",
+    "meta-llama/Llama-3.2-1B-Instruct",
+    "meta-llama/Llama-3.2-3B-Instruct",
 ]
 
 PROMPTS = {
@@ -127,7 +128,8 @@ def parse_args() -> argparse.Namespace:
         dest="models",
         help=(
             "Hugging Face model id. May be passed multiple times. "
-            "Defaults to both Qwen2.5-1.5B-Instruct and Qwen2.5-3B-Instruct."
+            "Defaults to both Llama-3.2-1B-Instruct and "
+            "Llama-3.2-3B-Instruct."
         ),
     )
     parser.add_argument(
@@ -175,8 +177,8 @@ def run_model(
     except (GatedRepoError, HfHubHTTPError, LocalEntryNotFoundError) as exc:
         print(
             "\nCould not load the model from Hugging Face.\n"
-            "For public Qwen models, retrying after login can help "
-            "with rate limits:\n"
+            "For gated Llama models, ensure your Hugging Face account has "
+            "access and retry after login:\n"
             "  mise hf-login\n"
             "  mise download-models\n\n"
             f"Original error: {exc}",
