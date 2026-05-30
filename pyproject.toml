@@ -1,11 +1,17 @@
 [project]
 name = "refusal-direction-extended"
 version = "0.1.0"
-description = "Add your description here"
+description = """\
+This project seeks to reproduce the findings of Arditi et al.'s \
+"[Refusal in Language Models Is Mediated by a Single Direction]\
+(https://arxiv.org/abs/2406.11717)". It also extends those findings by \
+comparing refusal directions across Llama 3.2 Instruct model sizes and \
+testing whether an alignment-based transfer works between them."""
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "datasets>=4.8.5",
+    "matplotlib>=3.9.0",
     "transformer-lens>=3.2.1",
     "transformers>=5.9.0",
 ]

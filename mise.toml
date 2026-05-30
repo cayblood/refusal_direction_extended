@@ -75,6 +75,76 @@ run = "uv run python scripts/baseline.py --device cuda"
 description = "Run baseline generations locally on CPU/MPS/CUDA intentionally"
 run = "uv run python scripts/baseline.py --allow-local"
 
+[tasks.collect-activations]
+description = "Collect last-token resid_post activations on CUDA in the active runtime"
+depends = ["gpu-check"]
+run = "uv run python scripts/collect_activations.py --device cuda"
+
+[tasks.collect-activations-local]
+description = "Collect activations locally on CPU/MPS/CUDA intentionally"
+run = "uv run python scripts/collect_activations.py --allow-local"
+
+[tasks.smoke-activations]
+description = "Collect activations for a few prompts locally as a quick smoke test"
+run = "uv run python scripts/collect_activations.py --allow-local --model meta-llama/Llama-3.2-1B-Instruct --limit 4 --batch-size 4"
+
+[tasks.extract-directions]
+description = "Extract difference-in-means candidate refusal directions from cached activations"
+run = "uv run python scripts/extract_directions.py"
+
+[tasks.evaluate-ablation]
+description = "Validate refusal directions by ablation on CUDA in the active runtime"
+depends = ["gpu-check"]
+run = "uv run python scripts/evaluate_ablation.py --device cuda"
+
+[tasks.evaluate-ablation-local]
+description = "Validate refusal directions by ablation locally on CPU/MPS/CUDA"
+run = "uv run python scripts/evaluate_ablation.py --allow-local"
+
+[tasks.evaluate-quantitative]
+description = "Quantitative ablation+addition 2x2 on the test split (CUDA)"
+depends = ["gpu-check"]
+run = "uv run python scripts/evaluate_quantitative.py --device cuda"
+
+[tasks.evaluate-quantitative-local]
+description = "Quantitative ablation+addition 2x2 locally on CPU/MPS/CUDA"
+run = "uv run python scripts/evaluate_quantitative.py --allow-local"
+
+[tasks.plot-quantitative]
+description = "Plot the addition sweep and 2x2 table (CPU, no GPU)"
+run = "uv run python scripts/plot_quantitative.py"
+
+[tasks.evaluate-transfer]
+description = "Cross-scale linear transfer of the refusal direction (CUDA)"
+depends = ["gpu-check"]
+run = "uv run python scripts/evaluate_transfer.py --device cuda"
+
+[tasks.evaluate-transfer-local]
+description = "Cross-scale linear transfer of the refusal direction (CPU/MPS/CUDA)"
+run = "uv run python scripts/evaluate_transfer.py --allow-local"
+
+[tasks.prepare-generic]
+description = "Prepare an independent, format-matched neutral instruction set (transfer control)"
+run = "uv run python scripts/prepare_generic.py"
+
+[tasks.collect-generic-activations]
+description = "Collect generic-prompt activations for the transfer control (CUDA)"
+depends = ["gpu-check"]
+run = "uv run python scripts/collect_generic_activations.py --device cuda"
+
+[tasks.collect-generic-activations-local]
+description = "Collect generic-prompt activations locally (CPU/MPS/CUDA)"
+run = "uv run python scripts/collect_generic_activations.py --allow-local"
+
+[tasks.evaluate-transfer-independent]
+description = "Transfer control: fit the alignment map on the independent generic set (CUDA)"
+depends = ["gpu-check"]
+run = "uv run python scripts/evaluate_transfer_independent.py --device cuda"
+
+[tasks.evaluate-transfer-independent-local]
+description = "Transfer control on the independent generic set (CPU/MPS/CUDA)"
+run = "uv run python scripts/evaluate_transfer_independent.py --allow-local"
+
 [tasks.runpod-check-config]
 description = "Print Runpod SSH configuration derived from environment variables"
 run = "uv run python scripts/runpod.py check-config"
@@ -106,6 +176,50 @@ run = "uv run python scripts/runpod.py smoke-datasets"
 [tasks.runpod-baseline]
 description = "Run baseline generations on the configured Runpod pod"
 run = "uv run python scripts/runpod.py baseline"
+
+[tasks.runpod-collect-activations]
+description = "Collect last-token resid_post activations on the configured Runpod pod"
+run = "uv run python scripts/runpod.py collect-activations"
+
+[tasks.runpod-smoke-activations]
+description = "Collect activations for a few prompts on Runpod as a quick smoke test"
+run = "uv run python scripts/runpod.py collect-activations --limit 4 --batch-size 4 --model meta-llama/Llama-3.2-1B-Instruct"
+
+[tasks.runpod-extract-directions]
+description = "Extract candidate refusal directions on the configured Runpod pod"
+run = "uv run python scripts/runpod.py extract-directions"
+
+[tasks.runpod-evaluate-ablation]
+description = "Validate refusal directions by ablation on the configured Runpod pod"
+run = "uv run python scripts/runpod.py evaluate-ablation"
+
+[tasks.runpod-evaluate-quantitative]
+description = "Run the quantitative ablation+addition 2x2 on the configured Runpod pod"
+run = "uv run python scripts/runpod.py evaluate-quantitative"
+
+[tasks.runpod-evaluate-transfer]
+description = "Run the cross-scale linear transfer experiment on the configured Runpod pod"
+run = "uv run python scripts/runpod.py evaluate-transfer"
+
+[tasks.runpod-prepare-generic]
+description = "Prepare the independent generic instruction set on the configured Runpod pod"
+run = "uv run python scripts/runpod.py prepare-generic"
+
+[tasks.runpod-collect-generic-activations]
+description = "Collect generic-prompt activations on the configured Runpod pod"
+run = "uv run python scripts/runpod.py collect-generic-activations"
+
+[tasks.runpod-evaluate-transfer-independent]
+description = "Run the independent-distribution transfer control on the configured Runpod pod"
+run = "uv run python scripts/runpod.py evaluate-transfer-independent"
+
+[tasks.runpod-terminate]
+description = "Terminate the configured Runpod pod to stop GPU billing (network volume preserved)"
+run = "uv run python scripts/runpod.py terminate"
+
+[tasks.runpod-pull-artifacts]
+description = "Pull generated artifacts (plots, summaries) from the Runpod pod to the local repo"
+run = "uv run python scripts/runpod.py pull artifacts/"
 
 [tasks.runpod-all]
 description = "Sync, set up, download models, and run baseline on Runpod"

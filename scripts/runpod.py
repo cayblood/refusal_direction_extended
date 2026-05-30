@@ -62,6 +62,9 @@ RSYNC_EXCLUDES = [
     ".venv/",
     "__pycache__/",
     "*.pyc",
+    # Large activation caches live on the pod for the next pipeline step;
+    # never upload or --delete them from the remote during a sync.
+    "data/activations/",
 ]
 
 
@@ -755,6 +758,129 @@ def smoke_datasets(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     ssh(config, in_project(config, command.strip()))
 
 
+def collect_activations(
+    config: RunpodConfig, extra_args: Sequence[str]
+) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = (
+        "uv run python scripts/collect_activations.py "
+        f"--device cuda {joined_args}"
+    )
+    ssh(config, in_project(config, command.strip()))
+
+
+def extract_directions(config: RunpodConfig, extra_args: Sequence[str]) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = f"uv run python scripts/extract_directions.py {joined_args}"
+    ssh(config, in_project(config, command.strip()))
+
+
+def evaluate_ablation(config: RunpodConfig, extra_args: Sequence[str]) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = (
+        "uv run python scripts/evaluate_ablation.py "
+        f"--device cuda {joined_args}"
+    )
+    ssh(config, in_project(config, command.strip()))
+
+
+def evaluate_quantitative(
+    config: RunpodConfig, extra_args: Sequence[str]
+) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = (
+        "uv run python scripts/evaluate_quantitative.py "
+        f"--device cuda {joined_args}"
+    )
+    ssh(config, in_project(config, command.strip()))
+
+
+def evaluate_transfer(config: RunpodConfig, extra_args: Sequence[str]) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = (
+        "uv run python scripts/evaluate_transfer.py "
+        f"--device cuda {joined_args}"
+    )
+    ssh(config, in_project(config, command.strip()))
+
+
+def prepare_generic(config: RunpodConfig, extra_args: Sequence[str]) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = f"uv run python scripts/prepare_generic.py {joined_args}"
+    ssh(config, in_project(config, command.strip()))
+
+
+def collect_generic_activations(
+    config: RunpodConfig, extra_args: Sequence[str]
+) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = (
+        "uv run python scripts/collect_generic_activations.py "
+        f"--device cuda {joined_args}"
+    )
+    ssh(config, in_project(config, command.strip()))
+
+
+def evaluate_transfer_independent(
+    config: RunpodConfig, extra_args: Sequence[str]
+) -> None:
+    joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
+    command = (
+        "uv run python scripts/evaluate_transfer_independent.py "
+        f"--device cuda {joined_args}"
+    )
+    ssh(config, in_project(config, command.strip()))
+
+
+def terminate(pod_id_arg: str | None) -> None:
+    """Terminate the configured pod to stop GPU billing.
+
+    The network volume is preserved, so cached models/activations survive;
+    recreate later with ``persistent-h100``. Reads the pod id from
+    ``.runpod.env`` unless one is passed explicitly.
+    """
+    load_local_env()
+    api_key = os.environ.get("RUNPOD_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "RUNPOD_API_KEY is required to terminate a pod (export it first)."
+        )
+    pod_id = pod_id_arg or os.environ.get("RUNPOD_POD_ID")
+    if not pod_id:
+        raise RuntimeError(
+            "No pod id: set RUNPOD_POD_ID (or .runpod.env) or pass one."
+        )
+    terminate_pod(api_key, pod_id)
+    print(
+        "Network volume preserved; recreate the pod with "
+        "`mise runpod-persistent-h100`.",
+        flush=True,
+    )
+
+
+def pull(config: RunpodConfig, relative_path: str) -> None:
+    """Rsync a path under the remote project dir back into the local repo."""
+    safe_relative = relative_path.lstrip("/")
+    remote_path = f"{config.remote_dir}/{safe_relative}"
+    local_path = repo_root() / safe_relative
+    local_path.mkdir(parents=True, exist_ok=True)
+
+    ensure_remote_rsync(config)
+    rsync_args = [
+        "rsync",
+        "-rz",
+        "--no-owner",
+        "--no-group",
+        "--no-perms",
+        "-e",
+        f"ssh -o StrictHostKeyChecking=accept-new -p {config.ssh_port}",
+    ]
+    source = f"{config.ssh_target}:{remote_path}/"
+    destination = f"{local_path}/"
+    run([*rsync_args, source, destination])
+    print(f"Pulled {remote_path} -> {local_path}", flush=True)
+
+
 def exec_remote(config: RunpodConfig, command: str) -> None:
     ssh(config, in_project(config, command))
 
@@ -904,25 +1030,35 @@ def parse_args() -> argparse.Namespace:
     subparsers.add_parser("gpu-check")
     subparsers.add_parser("download-models")
 
-    baseline_parser = subparsers.add_parser("baseline")
-    baseline_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
+    # These commands forward any extra flags to the underlying script.
+    # Extra flags are collected with parse_known_args below, which handles
+    # leading-dash arguments (e.g. --limit) that argparse.REMAINDER mishandles.
+    subparsers.add_parser("baseline")
+    subparsers.add_parser("prepare-datasets")
+    subparsers.add_parser("smoke-datasets")
+    subparsers.add_parser("collect-activations")
+    subparsers.add_parser("extract-directions")
+    subparsers.add_parser("evaluate-ablation")
+    subparsers.add_parser("evaluate-quantitative")
+    subparsers.add_parser("evaluate-transfer")
+    subparsers.add_parser("prepare-generic")
+    subparsers.add_parser("collect-generic-activations")
+    subparsers.add_parser("evaluate-transfer-independent")
+    subparsers.add_parser("all")
+    subparsers.add_parser("ephemeral")
 
-    prepare_datasets_parser = subparsers.add_parser("prepare-datasets")
-    prepare_datasets_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
-
-    smoke_datasets_parser = subparsers.add_parser("smoke-datasets")
-    smoke_datasets_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
-
-    all_parser = subparsers.add_parser("all")
-    all_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
-
-    ephemeral_parser = subparsers.add_parser("ephemeral")
-    ephemeral_parser.add_argument("extra_args", nargs=argparse.REMAINDER)
+    pull_parser = subparsers.add_parser("pull")
+    pull_parser.add_argument("relative_path")
 
     exec_parser = subparsers.add_parser("exec")
     exec_parser.add_argument("remote_command")
 
-    return parser.parse_args()
+    terminate_parser = subparsers.add_parser("terminate")
+    terminate_parser.add_argument("pod_id", nargs="?", default=None)
+
+    args, extra_args = parser.parse_known_args()
+    args.extra_args = extra_args
+    return args
 
 
 def main() -> int:
@@ -954,10 +1090,34 @@ def main() -> int:
                 prepare_datasets(RunpodConfig.from_env(), args.extra_args)
             case "smoke-datasets":
                 smoke_datasets(RunpodConfig.from_env(), args.extra_args)
+            case "collect-activations":
+                collect_activations(RunpodConfig.from_env(), args.extra_args)
+            case "extract-directions":
+                extract_directions(RunpodConfig.from_env(), args.extra_args)
+            case "evaluate-ablation":
+                evaluate_ablation(RunpodConfig.from_env(), args.extra_args)
+            case "evaluate-quantitative":
+                evaluate_quantitative(RunpodConfig.from_env(), args.extra_args)
+            case "evaluate-transfer":
+                evaluate_transfer(RunpodConfig.from_env(), args.extra_args)
+            case "prepare-generic":
+                prepare_generic(RunpodConfig.from_env(), args.extra_args)
+            case "collect-generic-activations":
+                collect_generic_activations(
+                    RunpodConfig.from_env(), args.extra_args
+                )
+            case "evaluate-transfer-independent":
+                evaluate_transfer_independent(
+                    RunpodConfig.from_env(), args.extra_args
+                )
+            case "pull":
+                pull(RunpodConfig.from_env(), args.relative_path)
             case "all":
                 run_all(RunpodConfig.from_env(), args.extra_args)
             case "exec":
                 exec_remote(RunpodConfig.from_env(), args.remote_command)
+            case "terminate":
+                terminate(args.pod_id)
             case _:
                 raise ValueError(f"Unknown command: {args.command}")
     except (
