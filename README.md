@@ -79,73 +79,73 @@ Tasks that run model code default to CUDA in the active runtime. Tasks with a
 
 ```sh
 # Environment and code quality
-mise tasks              # list available tasks
-mise setup              # sync Python dependencies into the active environment
-mise check-env          # print Python and core package versions
-mise gpu-check          # verify CUDA is available in the active runtime
-mise lint               # lint Python files with Ruff
-mise lint-fix           # apply safe Ruff lint fixes
-mise format             # format Python files with Ruff
-mise format-check       # check formatting without modifying files
-mise check              # run non-download, non-GPU checks: lint + format-check
+mise tasks                                # list available tasks
+mise setup                                # sync Python dependencies into the active environment
+mise check-env                            # print Python and core package versions
+mise gpu-check                            # verify CUDA is available in the active runtime
+mise lint                                 # lint Python files with Ruff
+mise lint-fix                             # apply safe Ruff lint fixes
+mise format                               # format Python files with Ruff
+mise format-check                         # check formatting without modifying files
+mise check                                # run non-download, non-GPU checks: lint + format-check
 
 # Hugging Face and model downloads
-mise hf-login           # log in to Hugging Face for gated Llama access
-mise hf-whoami          # show the active Hugging Face account/token status
-mise download-models    # download/cache both Llama 3.2 Instruct models
-mise download-model     # alias for download-models
-mise download-llama-1b  # download/cache only Llama 3.2 1B Instruct
-mise download-llama-3b  # download/cache only Llama 3.2 3B Instruct
+mise hf-login                             # log in to Hugging Face for gated Llama access
+mise hf-whoami                            # show the active Hugging Face account/token status
+mise download-models                      # download/cache both Llama 3.2 Instruct models
+mise download-model                       # alias for download-models
+mise download-llama-1b                    # download/cache only Llama 3.2 1B Instruct
+mise download-llama-3b                    # download/cache only Llama 3.2 3B Instruct
 
 # Pipeline (active runtime; *-local opts into a local CPU/MPS/CUDA run)
-mise prepare-datasets   # prepare AdvBench/Alpaca datasets locally
-mise smoke-datasets     # short generation smoke test on prepared datasets
-mise baseline           # run baseline generations on CUDA in active shell
-mise baseline-local     # explicitly run baseline locally on CPU/MPS/CUDA
-mise collect-activations # collect last-token resid_post activations on CUDA
-mise collect-activations-local # collect activations locally (CPU/MPS/CUDA)
-mise smoke-activations  # collect activations for a few prompts as a smoke test
-mise extract-directions # difference-in-means candidate refusal directions
-mise evaluate-ablation  # validate directions by ablation on CUDA
-mise evaluate-ablation-local # validate directions by ablation locally
-mise plot-ablation      # plot the ablation sweep by layer/position (CPU)
-mise evaluate-quantitative # ablation+addition 2x2 on the test split (CUDA)
-mise evaluate-quantitative-local # ablation+addition 2x2 locally
-mise plot-quantitative  # plot the addition sweep and 2x2 table (CPU)
-mise evaluate-transfer  # cross-scale linear transfer of the direction (CUDA)
-mise evaluate-transfer-local # cross-scale linear transfer locally
-mise prepare-generic    # prepare the independent generic instruction set
-mise collect-generic-activations # collect generic-prompt activations (CUDA)
-mise collect-generic-activations-local # collect generic activations locally
-mise evaluate-transfer-independent # transfer control on independent set (CUDA)
-mise evaluate-transfer-independent-local # transfer control locally
-mise all-local          # run the whole pipeline end-to-end locally (CPU/MPS)
+mise prepare-datasets                     # prepare AdvBench/Alpaca datasets locally
+mise smoke-datasets                       # short generation smoke test on prepared datasets
+mise baseline                             # run baseline generations on CUDA in active shell
+mise baseline-local                       # explicitly run baseline locally on CPU/MPS/CUDA
+mise collect-activations                  # collect last-token resid_post activations on CUDA
+mise collect-activations-local            # collect activations locally (CPU/MPS/CUDA)
+mise smoke-activations                    # collect activations for a few prompts as a smoke test
+mise extract-directions                   # difference-in-means candidate refusal directions
+mise evaluate-ablation                    # validate directions by ablation on CUDA
+mise evaluate-ablation-local              # validate directions by ablation locally
+mise plot-ablation                        # plot the ablation sweep by layer/position (CPU)
+mise evaluate-quantitative                # ablation+addition 2x2 on the test split (CUDA)
+mise evaluate-quantitative-local          # ablation+addition 2x2 locally
+mise plot-quantitative                    # plot the addition sweep and 2x2 table (CPU)
+mise evaluate-transfer                    # cross-scale linear transfer of the direction (CUDA)
+mise evaluate-transfer-local              # cross-scale linear transfer locally
+mise prepare-generic                      # prepare the independent generic instruction set
+mise collect-generic-activations          # collect generic-prompt activations (CUDA)
+mise collect-generic-activations-local    # collect generic activations locally
+mise evaluate-transfer-independent        # transfer control on independent set (CUDA)
+mise evaluate-transfer-independent-local  # transfer control locally
+mise all-local                            # run the whole pipeline end-to-end locally (CPU/MPS)
 
 # Runpod (execute the corresponding step on the configured pod over SSH)
-mise runpod-check-config # print configured Runpod connection settings
-mise runpod-check-ephemeral-config # print API-based pod spec
-mise runpod-check-h100-config # print persistent H100 pod spec
-mise runpod-persistent-h100 # reuse network volume, leave H100 pod running
-mise runpod-sync        # rsync this repository to the Runpod pod
-mise runpod-setup       # install uv and sync dependencies on Runpod
-mise runpod-gpu-check   # verify CUDA on Runpod
-mise runpod-download-models # download/cache models on Runpod
-mise runpod-prepare-datasets # prepare AdvBench/Alpaca datasets on Runpod
-mise runpod-smoke-datasets # short generation smoke test on Runpod
-mise runpod-baseline    # run baseline on Runpod
-mise runpod-collect-activations # collect activations for both models on Runpod
-mise runpod-smoke-activations # collect activations for a few prompts on Runpod
-mise runpod-extract-directions # extract candidate refusal directions on Runpod
-mise runpod-evaluate-ablation # validate directions by ablation on Runpod
-mise runpod-evaluate-quantitative # ablation+addition 2x2 on Runpod
-mise runpod-evaluate-transfer # cross-scale linear transfer on Runpod
-mise runpod-prepare-generic # prepare the independent generic set on Runpod
-mise runpod-collect-generic-activations # collect generic activations (Runpod)
+mise runpod-check-config                  # print configured Runpod connection settings
+mise runpod-check-ephemeral-config        # print API-based pod spec
+mise runpod-check-h100-config             # print persistent H100 pod spec
+mise runpod-persistent-h100               # reuse network volume, leave H100 pod running
+mise runpod-sync                          # rsync this repository to the Runpod pod
+mise runpod-setup                         # install uv and sync dependencies on Runpod
+mise runpod-gpu-check                     # verify CUDA on Runpod
+mise runpod-download-models               # download/cache models on Runpod
+mise runpod-prepare-datasets              # prepare AdvBench/Alpaca datasets on Runpod
+mise runpod-smoke-datasets                # short generation smoke test on Runpod
+mise runpod-baseline                      # run baseline on Runpod
+mise runpod-collect-activations           # collect activations for both models on Runpod
+mise runpod-smoke-activations             # collect activations for a few prompts on Runpod
+mise runpod-extract-directions            # extract candidate refusal directions on Runpod
+mise runpod-evaluate-ablation             # validate directions by ablation on Runpod
+mise runpod-evaluate-quantitative         # ablation+addition 2x2 on Runpod
+mise runpod-evaluate-transfer             # cross-scale linear transfer on Runpod
+mise runpod-prepare-generic               # prepare the independent generic set on Runpod
+mise runpod-collect-generic-activations   # collect generic activations (Runpod)
 mise runpod-evaluate-transfer-independent # transfer control on Runpod
-mise runpod-pull-artifacts # pull generated plots/summaries from Runpod to local
-mise runpod-all         # sync, setup, download models, and run baseline
-mise runpod-ephemeral   # create pod, run baseline, terminate pod
-mise runpod-terminate   # terminate the pod (network volume preserved)
+mise runpod-pull-artifacts                # pull generated plots/summaries from Runpod to local
+mise runpod-all                           # sync, setup, download models, and run baseline
+mise runpod-ephemeral                     # create pod, run baseline, terminate pod
+mise runpod-terminate                     # terminate the pod (network volume preserved)
 ```
 
 If `download-models`, `prepare-datasets`, or `baseline` reports an
