@@ -60,90 +60,127 @@ depends = ["download-models"]
 
 [tasks.prepare-datasets]
 description = "Prepare AdvBench/Alpaca refusal-direction datasets locally"
-run = "uv run python scripts/prepare_datasets.py"
+run = "uv run python scripts/01_prepare_datasets.py"
 
 [tasks.smoke-datasets]
 description = "Run a short local generation smoke test on prepared datasets"
-run = "uv run python scripts/smoke_datasets.py"
+run = "uv run python scripts/02_smoke_datasets.py"
 
 [tasks.baseline]
 description = "Run baseline generations on CUDA in the active runtime"
 depends = ["gpu-check"]
-run = "uv run python scripts/baseline.py --device cuda"
+run = "uv run python scripts/03_baseline.py --device cuda"
 
 [tasks.baseline-local]
 description = "Run baseline generations locally on CPU/MPS/CUDA intentionally"
-run = "uv run python scripts/baseline.py --allow-local"
+run = "uv run python scripts/03_baseline.py --allow-local"
 
 [tasks.collect-activations]
 description = "Collect last-token resid_post activations on CUDA in the active runtime"
 depends = ["gpu-check"]
-run = "uv run python scripts/collect_activations.py --device cuda"
+run = "uv run python scripts/04_collect_activations.py --device cuda"
 
 [tasks.collect-activations-local]
 description = "Collect activations locally on CPU/MPS/CUDA intentionally"
-run = "uv run python scripts/collect_activations.py --allow-local"
+run = "uv run python scripts/04_collect_activations.py --allow-local"
 
 [tasks.smoke-activations]
 description = "Collect activations for a few prompts locally as a quick smoke test"
-run = "uv run python scripts/collect_activations.py --allow-local --model meta-llama/Llama-3.2-1B-Instruct --limit 4 --batch-size 4"
+run = "uv run python scripts/04_collect_activations.py --allow-local --model meta-llama/Llama-3.2-1B-Instruct --limit 4 --batch-size 4"
 
 [tasks.extract-directions]
 description = "Extract difference-in-means candidate refusal directions from cached activations"
-run = "uv run python scripts/extract_directions.py"
+run = "uv run python scripts/05_extract_directions.py"
 
 [tasks.evaluate-ablation]
 description = "Validate refusal directions by ablation on CUDA in the active runtime"
 depends = ["gpu-check"]
-run = "uv run python scripts/evaluate_ablation.py --device cuda"
+run = "uv run python scripts/06_evaluate_ablation.py --device cuda"
 
 [tasks.evaluate-ablation-local]
 description = "Validate refusal directions by ablation locally on CPU/MPS/CUDA"
-run = "uv run python scripts/evaluate_ablation.py --allow-local"
+run = "uv run python scripts/06_evaluate_ablation.py --allow-local"
 
 [tasks.evaluate-quantitative]
 description = "Quantitative ablation+addition 2x2 on the test split (CUDA)"
 depends = ["gpu-check"]
-run = "uv run python scripts/evaluate_quantitative.py --device cuda"
+run = "uv run python scripts/08_evaluate_quantitative.py --device cuda"
 
 [tasks.evaluate-quantitative-local]
 description = "Quantitative ablation+addition 2x2 locally on CPU/MPS/CUDA"
-run = "uv run python scripts/evaluate_quantitative.py --allow-local"
+run = "uv run python scripts/08_evaluate_quantitative.py --allow-local"
+
+[tasks.plot-ablation]
+description = "Plot the ablation sweep by layer/position (CPU, no GPU)"
+run = "uv run python scripts/07_plot_ablation.py"
 
 [tasks.plot-quantitative]
 description = "Plot the addition sweep and 2x2 table (CPU, no GPU)"
-run = "uv run python scripts/plot_quantitative.py"
+run = "uv run python scripts/09_plot_quantitative.py"
+
+[tasks.inspect-addition]
+description = "Print benign completions under direction addition at several strengths (CUDA)"
+depends = ["gpu-check"]
+run = "uv run python scripts/10_inspect_addition.py --device cuda"
+
+[tasks.inspect-addition-local]
+description = "Print benign completions under direction addition locally (CPU/MPS/CUDA)"
+run = "uv run python scripts/10_inspect_addition.py --allow-local"
 
 [tasks.evaluate-transfer]
 description = "Cross-scale linear transfer of the refusal direction (CUDA)"
 depends = ["gpu-check"]
-run = "uv run python scripts/evaluate_transfer.py --device cuda"
+run = "uv run python scripts/11_evaluate_transfer.py --device cuda"
 
 [tasks.evaluate-transfer-local]
 description = "Cross-scale linear transfer of the refusal direction (CPU/MPS/CUDA)"
-run = "uv run python scripts/evaluate_transfer.py --allow-local"
+run = "uv run python scripts/11_evaluate_transfer.py --allow-local"
 
 [tasks.prepare-generic]
 description = "Prepare an independent, format-matched neutral instruction set (transfer control)"
-run = "uv run python scripts/prepare_generic.py"
+run = "uv run python scripts/12_prepare_generic.py"
 
 [tasks.collect-generic-activations]
 description = "Collect generic-prompt activations for the transfer control (CUDA)"
 depends = ["gpu-check"]
-run = "uv run python scripts/collect_generic_activations.py --device cuda"
+run = "uv run python scripts/13_collect_generic_activations.py --device cuda"
 
 [tasks.collect-generic-activations-local]
 description = "Collect generic-prompt activations locally (CPU/MPS/CUDA)"
-run = "uv run python scripts/collect_generic_activations.py --allow-local"
+run = "uv run python scripts/13_collect_generic_activations.py --allow-local"
 
 [tasks.evaluate-transfer-independent]
 description = "Transfer control: fit the alignment map on the independent generic set (CUDA)"
 depends = ["gpu-check"]
-run = "uv run python scripts/evaluate_transfer_independent.py --device cuda"
+run = "uv run python scripts/14_evaluate_transfer_independent.py --device cuda"
 
 [tasks.evaluate-transfer-independent-local]
 description = "Transfer control on the independent generic set (CPU/MPS/CUDA)"
-run = "uv run python scripts/evaluate_transfer_independent.py --allow-local"
+run = "uv run python scripts/14_evaluate_transfer_independent.py --allow-local"
+
+[tasks.all-local]
+description = "Run the entire pipeline end-to-end locally (downloads + both models on CPU/MPS; overwrites artifacts/)"
+run = """
+set -e
+export PYTORCH_ENABLE_MPS_FALLBACK=1
+export TRANSFORMERLENS_ALLOW_MPS=1
+uv run hf download meta-llama/Llama-3.2-1B-Instruct --repo-type model
+uv run hf download meta-llama/Llama-3.2-3B-Instruct --repo-type model
+uv run python scripts/01_prepare_datasets.py
+uv run python scripts/02_smoke_datasets.py --device mps --examples-per-class 1 --max-new-tokens 16
+uv run python scripts/03_baseline.py --allow-local --max-new-tokens 48
+uv run python scripts/04_collect_activations.py --allow-local
+uv run python scripts/05_extract_directions.py
+uv run python scripts/06_evaluate_ablation.py --allow-local
+uv run python scripts/07_plot_ablation.py
+uv run python scripts/08_evaluate_quantitative.py --allow-local
+uv run python scripts/09_plot_quantitative.py
+uv run python scripts/10_inspect_addition.py --allow-local
+uv run python scripts/11_evaluate_transfer.py --allow-local
+uv run python scripts/12_prepare_generic.py
+uv run python scripts/13_collect_generic_activations.py --allow-local
+uv run python scripts/14_evaluate_transfer_independent.py --allow-local
+"""
 
 [tasks.runpod-check-config]
 description = "Print Runpod SSH configuration derived from environment variables"

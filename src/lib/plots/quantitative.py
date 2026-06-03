@@ -1,31 +1,9 @@
-"""Plot the quantitative results: addition sweep + the 2x2 table.
-
-Reads ``quantitative_2x2.json`` written by ``evaluate_quantitative.py`` and, for
-each model, draws two panels:
-
-* the benign refusal rate as a function of the addition strength ``alpha``
-  (sufficiency: how hard you must push before benign prompts get refused), and
-* the headline 2x2 grouped bars (baseline vs. intervention, harmful vs. benign).
-
-Runs on CPU; no model or GPU required.
-"""
+"""Plot the addition sweep and the headline 2x2 table."""
 
 from __future__ import annotations
 
-import argparse
-import json
 from pathlib import Path
-from typing import Any, cast
-
-DEFAULT_ARTIFACTS_DIR = Path("artifacts/activations")
-DEFAULT_MODELS = [
-    "meta-llama/Llama-3.2-1B-Instruct",
-    "meta-llama/Llama-3.2-3B-Instruct",
-]
-
-
-def model_slug(model_name: str) -> str:
-    return model_name.split("/")[-1]
+from typing import Any
 
 
 def plot_quantitative(data: dict[str, Any], output_path: Path) -> None:
@@ -99,37 +77,3 @@ def plot_quantitative(data: dict[str, Any], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=130)
     plt.close(fig)
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--model",
-        action="append",
-        dest="models",
-        help="HF model id; repeatable",
-    )
-    parser.add_argument("--artifacts-dir", default=str(DEFAULT_ARTIFACTS_DIR))
-    return parser.parse_args()
-
-
-def main() -> int:
-    args = parse_args()
-    models = cast(list[str], args.models) if args.models else DEFAULT_MODELS
-    artifacts_dir = Path(cast(str, args.artifacts_dir))
-
-    for model_name in models:
-        slug = model_slug(model_name)
-        data_path = artifacts_dir / slug / "quantitative_2x2.json"
-        if not data_path.exists():
-            print(f"Skipping {slug}: {data_path} not found")
-            continue
-        data = json.loads(data_path.read_text())
-        output_path = artifacts_dir / slug / "quantitative_2x2.png"
-        plot_quantitative(data, output_path)
-        print(f"Saved {output_path}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

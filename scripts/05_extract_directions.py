@@ -1,16 +1,9 @@
-"""Extract candidate refusal directions from cached activations.
+"""Extract difference-in-means candidate refusal directions (entry point).
 
-Reads the residual-stream activations produced by ``collect_activations.py`` and
-computes, for every captured ``(position, layer)`` pair, the difference-in-means
-direction between harmful and benign prompts:
-
-    r[pos, layer] = mean(harmful[:, pos, layer]) - mean(benign[:, pos, layer])
-
-each normalized to unit length. Following Arditi et al., the means are taken
-over a *train* split only; held-out *val* and *test* pairs are reserved for the
-ablation sweep and final quantitative evaluation. The split
-(by dataset ``pair_id``) is stored alongside the directions so later steps
-evaluate on prompts that never informed the directions.
+For every captured ``(position, layer)`` pair, compute the unit-norm
+difference-in-means direction between harmful and benign prompts on a *train*
+split; held-out val/test pairs are reserved for the ablation sweep and the
+quantitative evaluation. The split (by ``pair_id``) is saved alongside.
 """
 
 from __future__ import annotations
@@ -18,11 +11,19 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
 import torch
+
+from lib.activations import (
+    difference_in_means,
+    load_pt,
+    raw_diff_norms,
+    split_indices,
+    split_pair_ids,
+)
+from lib.runtime import model_slug
 
 DEFAULT_ACTIVATIONS_DIR = Path("data/activations")
 DEFAULT_ARTIFACTS_DIR = Path("artifacts/activations")
@@ -32,46 +33,6 @@ DEFAULT_MODELS = [
 ]
 DEFAULT_TRAIN_SIZE = 128
 DEFAULT_VAL_SIZE = 64
-
-
-def model_slug(model_name: str) -> str:
-    return model_name.split("/")[-1]
-
-
-def split_indices(
-    n: int, train_size: int, val_size: int, seed: int
-) -> dict[str, list[int]]:
-    """Deterministically split [0, n) into train/val/test index lists."""
-    generator = torch.Generator().manual_seed(seed)
-    permutation = torch.randperm(n, generator=generator).tolist()
-    train = permutation[:train_size]
-    val = permutation[train_size : train_size + val_size]
-    test = permutation[train_size + val_size :]
-    return {"train": train, "val": val, "test": test}
-
-
-def difference_in_means(
-    harmful: torch.Tensor, benign: torch.Tensor, train: Sequence[int]
-) -> torch.Tensor:
-    """Unit-norm difference-in-means per (position, layer): [K, n_layers, d].
-
-    ``harmful``/``benign`` are ``[n_prompts, K, n_layers, d_model]``.
-    """
-    index = torch.tensor(train, dtype=torch.long)
-    mean_harmful = harmful[index].mean(dim=0)  # [K, n_layers, d_model]
-    mean_benign = benign[index].mean(dim=0)
-    diff = mean_harmful - mean_benign
-    norm = diff.norm(dim=-1, keepdim=True).clamp_min(1e-8)
-    return diff / norm
-
-
-def raw_diff_norms(
-    harmful: torch.Tensor, benign: torch.Tensor, train: Sequence[int]
-) -> torch.Tensor:
-    """Unnormalized difference norm per (position, layer): [K, n_layers]."""
-    index = torch.tensor(train, dtype=torch.long)
-    diff = harmful[index].mean(dim=0) - benign[index].mean(dim=0)
-    return diff.norm(dim=-1)
 
 
 def extract_for_model(
@@ -87,12 +48,12 @@ def extract_for_model(
     activations_path = activations_dir / slug / "resid_post.pt"
     if not activations_path.exists():
         print(
-            f"Missing {activations_path}. Run collect_activations.py first.",
+            f"Missing {activations_path}. Run collect-activations first.",
             file=sys.stderr,
         )
         return 1
 
-    blob = torch.load(activations_path, map_location="cpu")
+    blob = load_pt(activations_path, "cpu")
     harmful = cast(torch.Tensor, blob["harmful"])
     benign = cast(torch.Tensor, blob["benign"])
     offsets = cast(list[int], blob["position_offsets"])
@@ -111,13 +72,7 @@ def extract_for_model(
     split = split_indices(n_prompts, train_size, val_size, seed)
     harmful_pair_ids = cast(list[int], blob["harmful_pair_ids"])
     benign_pair_ids = cast(list[int], blob["benign_pair_ids"])
-    split_pair_ids = {
-        name: {
-            "harmful": [harmful_pair_ids[i] for i in idx],
-            "benign": [benign_pair_ids[i] for i in idx],
-        }
-        for name, idx in split.items()
-    }
+    pair_id_splits = split_pair_ids(split, harmful_pair_ids, benign_pair_ids)
 
     directions = difference_in_means(harmful, benign, split["train"])
     norms = raw_diff_norms(harmful, benign, split["train"])
@@ -136,7 +91,7 @@ def extract_for_model(
             "val_size": val_size,
             "seed": seed,
             "split_indices": split,
-            "split_pair_ids": split_pair_ids,
+            "split_pair_ids": pair_id_splits,
         },
         directions_path,
     )

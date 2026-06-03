@@ -1,10 +1,8 @@
-"""Run a short generation smoke test on prepared refusal datasets."""
+"""Run a short generation smoke test on prepared refusal datasets (entry)."""
 
 from __future__ import annotations
 
 import argparse
-import gc
-import json
 import sys
 import time
 from pathlib import Path
@@ -16,30 +14,26 @@ from huggingface_hub.errors import (
     HfHubHTTPError,
     LocalEntryNotFoundError,
 )
-from transformer_lens import HookedTransformer
+
+from lib.data import load_records
+from lib.runtime import load_model, release_memory
 
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 DEFAULT_DATASET_DIR = Path("data/refusal_datasets")
 
 
-def load_records(
+def collect_records(
     dataset_dir: Path, examples_per_class: int
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for label in ["harmful", "benign"]:
-        path = dataset_dir / f"{label}.jsonl"
-        if not path.exists():
-            raise RuntimeError(
-                f"Missing {path}. Run scripts/prepare_datasets.py first."
-            )
-        rows = [json.loads(line) for line in path.read_text().splitlines()]
-        records.extend(rows[:examples_per_class])
+        records.extend(load_records(dataset_dir, label, examples_per_class))
     return records
 
 
 def run_smoke_test(args: argparse.Namespace) -> int:
     dataset_dir = Path(cast(str, args.dataset_dir))
-    records = load_records(dataset_dir, cast(int, args.examples_per_class))
+    records = collect_records(dataset_dir, cast(int, args.examples_per_class))
     model_name = cast(str, args.model)
     device = cast(str, args.device)
 
@@ -53,12 +47,7 @@ def run_smoke_test(args: argparse.Namespace) -> int:
         flush=True,
     )
     try:
-        model = HookedTransformer.from_pretrained_no_processing(
-            model_name,
-            device=device,
-            dtype=torch.float16 if device in {"cuda", "mps"} else torch.float32,
-            default_prepend_bos=False,
-        )
+        model = load_model(model_name, device)
     except (GatedRepoError, HfHubHTTPError, LocalEntryNotFoundError) as exc:
         print(
             "Could not load the model from Hugging Face. Ensure your token "
@@ -93,11 +82,7 @@ def run_smoke_test(args: argparse.Namespace) -> int:
         print(completion, flush=True)
 
     del model
-    gc.collect()
-    if device == "cuda":
-        torch.cuda.empty_cache()
-    elif device == "mps":
-        torch.mps.empty_cache()
+    release_memory(device)
     return 0
 
 

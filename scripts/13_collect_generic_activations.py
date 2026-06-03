@@ -1,43 +1,29 @@
-"""Collect residual activations for the neutral generic instruction set.
+"""Collect residual activations for the generic instruction set (entry point).
 
-Mirrors ``collect_activations.py`` but for a single, unlabelled generic class,
-writing ``resid_post_generic.pt`` per model. These paired activations are the
-independent fitting distribution for the cross-scale transfer control
-(``evaluate_transfer_independent.py``): a different prompt distribution from
-the harmful/benign prompts that define the refusal direction.
-
-Reuses the model loader and the last-K activation capture from
-``collect_activations`` so the activations are produced identically to the main
-pipeline (same hook, same end-relative positions).
+Mirrors collect-activations but for a single unlabelled generic class, writing
+``resid_post_generic.pt`` per model — the independent fitting distribution for
+the cross-scale transfer control.
 """
 
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 from typing import cast
 
 import torch
-from collect_activations import (
-    collect_last_k_activations,
-    load_model,
-    load_records,
-    position_offsets,
-)
-from evaluate_ablation import pick_device
 
+from lib.activations import collect_last_k_activations, position_offsets
+from lib.data import load_records
+from lib.runtime import load_model, model_slug, release_memory, resolve_device
+
+DEFAULT_DATASET_DIR = Path("data/refusal_datasets")
+DEFAULT_ACTIVATIONS_DIR = Path("data/activations")
+DEFAULT_NUM_POSITIONS = 5
 DEFAULT_MODELS = [
     "meta-llama/Llama-3.2-1B-Instruct",
     "meta-llama/Llama-3.2-3B-Instruct",
 ]
-DEFAULT_DATASET_DIR = Path("data/refusal_datasets")
-DEFAULT_ACTIVATIONS_DIR = Path("data/activations")
-DEFAULT_NUM_POSITIONS = 5
-
-
-def model_slug(model_name: str) -> str:
-    return model_name.split("/")[-1]
 
 
 def collect_for_model(
@@ -84,6 +70,9 @@ def collect_for_model(
         out_path,
     )
     print(f"Saved {tuple(acts.shape)} -> {out_path}", flush=True)
+
+    del model
+    release_memory(device)
     return 0
 
 
@@ -114,20 +103,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    require_cuda = not cast(bool, args.allow_local)
-    device = (
-        pick_device(require_cuda=require_cuda)
-        if args.device == "auto"
-        else cast(str, args.device)
+    device = resolve_device(
+        cast(str, args.device), allow_local=cast(bool, args.allow_local)
     )
-    if require_cuda and device != "cuda":
-        print(
-            "CUDA is required by default. Use --allow-local to run on "
-            f"{device!r} intentionally.",
-            file=sys.stderr,
-        )
-        return 2
-
     models = cast(list[str], args.models) if args.models else DEFAULT_MODELS
     torch.set_grad_enabled(False)
     exit_code = 0

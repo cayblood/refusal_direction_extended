@@ -1,68 +1,31 @@
-"""Prepare a neutral, format-matched instruction set (transfer control).
+"""Prepare an independent, format-matched neutral instruction set.
 
-The cross-scale transfer map must be fit on prompts DISJOINT from the harmful
-(AdvBench) and benign (Alpaca) prompts that define the refusal direction;
-otherwise "does refusal transfer?" is circular. This builds an independent,
-format-matched neutral-instruction set (default: databricks-dolly-15k,
-context-free instructions) formatted with the exact same Llama chat template as
-the refusal datasets, written as ``generic.jsonl`` alongside them.
-
-It is "format-matched" on purpose: the prompts are instruction-style and pass
-through the same chat template, so the refusal *site* (the last instruction
-token before the assistant reply) is comparable to where the refusal direction
-was extracted — while still coming from a different prompt distribution.
-
-Reuses the formatting helpers from ``prepare_datasets`` so the generic prompts
-are tokenized and templated identically to harmful/benign.
+Builds the generic distribution used as the control for the cross-scale transfer
+experiment: instructions disjoint from the harmful (AdvBench) and benign
+(Alpaca) prompts, formatted with the same chat template, written as
+``generic.jsonl`` alongside the refusal datasets.
 """
 
 from __future__ import annotations
 
 import argparse
-import random
 from pathlib import Path
 from typing import Any, cast
 
-from datasets import Dataset, load_dataset
-from prepare_datasets import (
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+from lib.data import (
+    DEFAULT_GENERIC_DATASET,
     build_examples,
-    choose_text_column,
-    compact_unique,
+    load_generic_instructions,
+    sample_instructions,
     write_jsonl,
     write_metadata,
 )
-from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 DEFAULT_MODEL = "meta-llama/Llama-3.2-1B-Instruct"
 DEFAULT_OUTPUT_DIR = Path("data/refusal_datasets")
-DEFAULT_GENERIC_DATASET = "databricks/databricks-dolly-15k"
 DEFAULT_LABEL = "generic"
-
-
-def load_generic_instructions(
-    dataset_name: str,
-    split: str,
-    column: str | None,
-    context_free: bool,
-) -> list[str]:
-    dataset = cast(Dataset, load_dataset(dataset_name, split=split))
-    if context_free and "context" in dataset.column_names:
-        dataset = dataset.filter(
-            lambda row: not str(row.get("context") or "").strip()
-        )
-    text_column = choose_text_column(dataset.column_names, column)
-    return compact_unique(dataset[text_column])
-
-
-def sample_instructions(
-    instructions: list[str], sample_size: int, seed: int
-) -> list[str]:
-    if len(instructions) < sample_size:
-        raise RuntimeError(
-            f"Need {sample_size} generic instructions, found "
-            f"{len(instructions)}"
-        )
-    return random.Random(seed).sample(instructions, sample_size)
 
 
 def prepare(args: argparse.Namespace) -> None:
@@ -78,9 +41,9 @@ def prepare(args: argparse.Namespace) -> None:
         )
 
     instructions = load_generic_instructions(
-        cast(str, args.dataset),
-        cast(str, args.split),
-        cast("str | None", args.column),
+        dataset_name=cast(str, args.dataset),
+        split=cast(str, args.split),
+        column=cast("str | None", args.column),
         context_free=not cast(bool, args.allow_context),
     )
     sample = sample_instructions(
@@ -89,10 +52,11 @@ def prepare(args: argparse.Namespace) -> None:
     examples = build_examples(
         source=cast(str, args.dataset), instructions=sample, tokenizer=tokenizer
     )
+    label = cast(str, args.label)
     records: list[dict[str, Any]] = [
         {
             "pair_id": index,
-            "label": cast(str, args.label),
+            "label": label,
             "source": example.source,
             "source_index": example.source_index,
             "instruction": example.instruction,
@@ -103,7 +67,6 @@ def prepare(args: argparse.Namespace) -> None:
         for index, example in enumerate(examples)
     ]
 
-    label = cast(str, args.label)
     write_jsonl(output_dir / f"{label}.jsonl", records)
     write_metadata(
         output_dir / f"{label}_metadata.json",

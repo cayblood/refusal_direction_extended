@@ -742,19 +742,21 @@ def download_models(config: RunpodConfig) -> None:
 
 def baseline(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
-    command = f"uv run python scripts/baseline.py --device cuda {joined_args}"
+    command = (
+        f"uv run python scripts/03_baseline.py --device cuda {joined_args}"
+    )
     ssh(config, in_project(config, command.strip()))
 
 
 def prepare_datasets(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
-    command = f"uv run python scripts/prepare_datasets.py {joined_args}"
+    command = f"uv run python scripts/01_prepare_datasets.py {joined_args}"
     ssh(config, in_project(config, command.strip()))
 
 
 def smoke_datasets(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
-    command = f"uv run python scripts/smoke_datasets.py {joined_args}"
+    command = f"uv run python scripts/02_smoke_datasets.py {joined_args}"
     ssh(config, in_project(config, command.strip()))
 
 
@@ -763,7 +765,7 @@ def collect_activations(
 ) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
     command = (
-        "uv run python scripts/collect_activations.py "
+        "uv run python scripts/04_collect_activations.py "
         f"--device cuda {joined_args}"
     )
     ssh(config, in_project(config, command.strip()))
@@ -771,14 +773,14 @@ def collect_activations(
 
 def extract_directions(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
-    command = f"uv run python scripts/extract_directions.py {joined_args}"
+    command = f"uv run python scripts/05_extract_directions.py {joined_args}"
     ssh(config, in_project(config, command.strip()))
 
 
 def evaluate_ablation(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
     command = (
-        "uv run python scripts/evaluate_ablation.py "
+        "uv run python scripts/06_evaluate_ablation.py "
         f"--device cuda {joined_args}"
     )
     ssh(config, in_project(config, command.strip()))
@@ -789,7 +791,7 @@ def evaluate_quantitative(
 ) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
     command = (
-        "uv run python scripts/evaluate_quantitative.py "
+        "uv run python scripts/08_evaluate_quantitative.py "
         f"--device cuda {joined_args}"
     )
     ssh(config, in_project(config, command.strip()))
@@ -798,7 +800,7 @@ def evaluate_quantitative(
 def evaluate_transfer(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
     command = (
-        "uv run python scripts/evaluate_transfer.py "
+        "uv run python scripts/11_evaluate_transfer.py "
         f"--device cuda {joined_args}"
     )
     ssh(config, in_project(config, command.strip()))
@@ -806,7 +808,7 @@ def evaluate_transfer(config: RunpodConfig, extra_args: Sequence[str]) -> None:
 
 def prepare_generic(config: RunpodConfig, extra_args: Sequence[str]) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
-    command = f"uv run python scripts/prepare_generic.py {joined_args}"
+    command = f"uv run python scripts/12_prepare_generic.py {joined_args}"
     ssh(config, in_project(config, command.strip()))
 
 
@@ -815,7 +817,7 @@ def collect_generic_activations(
 ) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
     command = (
-        "uv run python scripts/collect_generic_activations.py "
+        "uv run python scripts/13_collect_generic_activations.py "
         f"--device cuda {joined_args}"
     )
     ssh(config, in_project(config, command.strip()))
@@ -826,7 +828,7 @@ def evaluate_transfer_independent(
 ) -> None:
     joined_args = " ".join(shlex.quote(arg) for arg in extra_args)
     command = (
-        "uv run python scripts/evaluate_transfer_independent.py "
+        "uv run python scripts/14_evaluate_transfer_independent.py "
         f"--device cuda {joined_args}"
     )
     ssh(config, in_project(config, command.strip()))
