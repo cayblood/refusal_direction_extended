@@ -350,7 +350,7 @@ is not where it most *acts* on it.
 ![1B ablation sweep](artifacts/local/activations/Llama-3.2-1B-Instruct/ablation_sweep.png)
 ![1B divergence by layer](artifacts/local/activations/Llama-3.2-1B-Instruct/divergence.png)
 
-### Transfer: real until you control for it
+### Transfer: 'real' until you control for it
 
 Fit a linear map from the 1B activation space into the 3B's, push the 1B refusal
 direction through it, and ablate the result in the 3B (lower harmful refusal
@@ -460,27 +460,27 @@ other:
    looked like a positive result. The honest answer ("doesn't transfer") is 
    more accurate than the tempting one.
 
-## Limitations and what's unresolved
+## Limitations
 
-I tried to keep this honest. The main caveats:
+A few caveats worth keeping in mind:
 
-- **The classifier is blunt.** Keyword matching can't tell a real refusal from
-  incoherent gibberish, which is exactly what distorts the high-α tail of the
-  over-steering sweep. An LLM-as-judge over the saved completions would be more
-  credible; the headline 2×2 is robust to this, the α tail less so.
-- **The 1B is a weak refuser.** It only refuses ~55% of harmful prompts at
-  baseline (versus the 3B's ~98%), so its necessity result is noisier.
-- **It's *almost* one direction, not exactly.** Ablation leaves some refusal
-  behind (a few percent on the 1B, ~12% on the 3B), so the direction is a
-  dominant lever rather than the entire mechanism.
-- **The transfer test is data-limited.** The linear map is badly
-  underdetermined (~128 fitting rows against thousands of dimensions), uses a
-  single anchor site, and is linear-only. The negative result is suggestive, not
-  the final word. More data, matched-depth anchors, or a non-linear map could
-  behave differently.
-- **Narrow scope.** Two models, one family, one harmful/benign dataset pair.
-  Whether any of this survives adversarial fine-tuning, generalizes across harm
-  categories, or holds at larger scale is untested.
+- **The refusal detector is crude.** It just checks whether a reply starts with
+  phrases like "I can't" or "I'm sorry." That's fine for clear cases, but it
+  can't tell a genuine refusal apart from broken or repetitive text, so I trust
+  the main before/after numbers more than the fine detail of the over-steering
+  sweep.
+- **The 1B barely refuses to begin with.** Unaltered, it refuses only about 55%
+  of harmful prompts (the 3B refuses ~98%), so its numbers are noisier and I'd
+  lean on the 3B for the stronger claims.
+- **Ablation doesn't remove refusal completely.** A little refusal is always
+  left over, so "a single direction" is a good approximation rather than a hard
+  rule.
+- **The transfer test is small.** I fit the map on a limited amount of data with
+  a simple linear method, so I'd treat the "doesn't transfer" result as
+  suggestive rather than settled.
+- **It's a small study.** Two models from one family and one harmful/benign
+  dataset. I haven't tested whether any of this holds more broadly, or whether
+  it survives fine-tuning.
 
 ## Why this matters for safety
 
