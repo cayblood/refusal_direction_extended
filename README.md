@@ -19,55 +19,12 @@ We use the Instruct variants for the primary experiments. Refusal behavior is
 a chat/instruction-tuning behavior, so Instruct models are the right default
 for reproducing harmful-vs-benign refusal activations.
 
-## Pipeline outputs
-
-The reproduction runs in stages, each producing artifacts the next stage reads:
-
-1. `prepare-datasets` → `data/refusal_datasets/` (length-matched harmful/benign
-   prompts formatted with the model chat template).
-2. `collect-activations` → `data/activations/<model>/resid_post.pt`
-   (residual-stream activations at the last several post-instruction token
-   positions for every layer, shape
-   `[n_prompts, n_positions, n_layers, d_model]`) plus
-   `artifacts/activations/<model>/divergence_summary.json` and `divergence.png`
-   (per-layer cosine similarity between mean harmful and mean benign activations
-   at the final token, a sanity check that the two classes separate in the
-   deeper layers, which is where refusal is expected to be mediated).
-3. `extract-directions` → `data/activations/<model>/directions.pt` (a
-   normalized difference-in-means candidate refusal direction for every
-   `(position, layer)` pair, computed on a train split) plus
-   `artifacts/activations/<model>/directions_summary.json`.
-4. `evaluate-ablation` → `artifacts/activations/<model>/ablation_*.json`
-   (refusal bypass rates from projecting each candidate direction out of the
-   residual stream, ranked to pick the most causally effective layer/position,
-   with example completions).
-
-## Runtime expectation
-
-GPU-dependent tasks assume CUDA unless the task name or command explicitly
-says local. You can run CUDA tasks in Colab Pro, Runpod, or another GPU
-runtime. In practice:
-
-- `mise baseline` expects CUDA in the active shell environment.
-- `mise gpu-check` verifies the active environment has CUDA.
-- `mise baseline-local` is the explicit opt-in for local CPU/MPS/CUDA testing.
-- `mise runpod-*` tasks execute on a configured Runpod pod over SSH.
-
-Model downloads are cached in the active runtime's Hugging Face cache. In
-Colab, that usually means the runtime cache unless you configure Hugging Face
-or your notebook to use mounted Drive storage. In Runpod, use persistent
-storage if you want model caches to survive pod replacement.
-
-Use `notebooks/refusal_direction_colab.ipynb` as the Colab Pro entry point. It
-runs the whole pipeline end to end: GPU setup, dependency installation, model
-downloads, dataset preparation, and every experiment through the cross-scale
-transfer.
-
 ## Prerequisites
 
 1. Install [`mise`](https://mise.jdx.dev/) in the environment where you run
    tasks.
-2. For GPU-dependent tasks, use a Colab Pro runtime with GPU enabled.
+2. The codebase assumes one of three different operation modes: local, runpod 
+   or as a colab notebook.
 3. Log in to Hugging Face with an account that has access to the gated Llama
    repositories.
 
