@@ -111,14 +111,6 @@ If `download-models`, `prepare-datasets`, or `baseline` reports an
 authorization, network, or rate-limit error, run `mise hf-login` with an
 account that has Llama access and rerun the task.
 
-## Editor linting
-
-Ruff is the project linter and formatter. Zed workspace settings in
-`.zed/settings.json` enable the Ruff language server for Python linting and use
-Ruff as the Python formatter. Pyright remains configured for basic type/import
-analysis through `pyrightconfig.json`, with noisy lint-like type warnings
-disabled so they do not duplicate Ruff.
-
 ## Colab notebook
 
 Open `notebooks/refusal_direction_colab.ipynb` in Colab, enable a GPU runtime
@@ -128,8 +120,6 @@ local `mise` shell integration.
 
 ## Runpod workflow
 
-### Persistent H100 pod + network volume
-
 This is the preferred Runpod workflow. Runpod has been extremely overloaded of
 late and requires several attempts to reserve a pod successfully. I tried
 getting it working in serverless mode for a while but it was so unstable as to
@@ -137,84 +127,19 @@ be unusable. This mode creates or reuses a persistent network volume, retries
 H100 pod creation until a usable SSH/CUDA pod is running, and leaves the
 successful pod running for repeated experiments.
 
-Configure your API key, Hugging Face token, and preferred Runpod datacenter:
+Configure your API key, Hugging Face token, and preferred Runpod datacenter, 
+then create or reconnect to the persistent H100 pod. The task writes 
+`.runpod.env` in the project root with the pod ID, SSH host/port, datacenter, 
+and network volume ID. This file is ignored by git and is read automatically by 
+later `mise runpod-*` tasks, so you do not need to repeatedly export pod 
+connection settings.
 
 ```sh
 export RUNPOD_API_KEY=...
 export HF_TOKEN=hf_...
 export RUNPOD_DATACENTER_ID=US-CA-2
-```
-
-Then create or reconnect to the persistent H100 pod:
-
-```sh
 mise runpod-persistent-h100
-```
-
-The task writes `.runpod.env` in the project root with the pod ID, SSH
-host/port, datacenter, and network volume ID. This file is ignored by git and
-is read automatically by later `mise runpod-*` tasks, so you do not need to
-repeatedly export pod connection settings.
-
-Useful optional settings:
-
-```sh
-export RUNPOD_NETWORK_VOLUME_ID=...      # reuse an existing volume
-export RUNPOD_NETWORK_VOLUME_SIZE_GB=200 # default: 200
-export RUNPOD_RETRY_SLEEP_SECONDS=60     # default: 60
-export RUNPOD_MAX_ATTEMPTS=0             # default: 0 means retry forever
-```
-
-After the pod is ready:
-
-```sh
-mise runpod-sync
-mise runpod-setup
-mise runpod-download-models
-mise runpod-prepare-datasets
-mise runpod-baseline
-mise runpod-collect-activations
-mise runpod-extract-directions
-mise runpod-evaluate-ablation
-mise runpod-evaluate-quantitative
-mise runpod-evaluate-transfer
-mise runpod-prepare-generic
-mise runpod-collect-generic-activations
-mise runpod-evaluate-transfer-independent
-mise runpod-pull-artifacts
-mise runpod-terminate
-```
-
-`runpod-collect-activations` writes the large activation tensors to
-`data/activations/<model>/` on the pod (kept there for the direction-extraction
-step) and small summary/plot artifacts to `artifacts/activations/<model>/`. The
-later stages (`extract-directions` through `evaluate-transfer-independent`) read
-those cached tensors, so they reuse the collection rather than recomputing it.
-`runpod-pull-artifacts` rsyncs the `artifacts/` tree back to the local repo so
-the plots and summaries are available for the writeup. The activation caches are
-intentionally excluded from `runpod-sync` so a later sync never deletes them
-from the pod.
-
-Failed pod creation attempts are terminated automatically. A successfully
-verified H100 pod is intentionally left running so you can rerun tests
-frequently; run `mise runpod-terminate` when you are done to stop GPU billing
-(the network volume, and the model/activation caches on it, are preserved).
-
-### Existing pod
-
-```sh
-export RUNPOD_SSH_TARGET=root@203.0.113.10
-export RUNPOD_SSH_PORT=22
-export HF_TOKEN=hf_...
 mise runpod-all
-```
-
-### Ephemeral pod
-
-```sh
-export RUNPOD_API_KEY=...
-export HF_TOKEN=hf_...
-mise runpod-ephemeral
 ```
 
 ## Experimental setup
