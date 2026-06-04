@@ -2,6 +2,11 @@
 python = "3.12"
 uv = "latest"
 
+[env]
+# Make the `lib` package (in src/lib) importable regardless of whether the
+# editable install took effect. uv run passes PYTHONPATH through to Python.
+PYTHONPATH = "{{ config_root }}/src"
+
 [tasks.setup]
 description = "Sync Python dependencies into the active environment"
 run = "uv sync"

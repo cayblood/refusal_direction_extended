@@ -6,6 +6,14 @@ sanity completion using hard-coded prompts.
 
 from __future__ import annotations
 
+import sys as _sys
+from pathlib import Path as _Path
+
+# Make src/ importable so `from lib...` resolves without an editable
+# install (e.g. on a fresh Colab runtime, where only PYTHONPATH or an
+# install would otherwise expose the package).
+_sys.path.insert(0, str(_Path(__file__).resolve().parents[1] / "src"))
+
 import argparse
 import sys
 import time

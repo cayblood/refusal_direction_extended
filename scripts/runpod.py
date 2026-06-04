@@ -345,6 +345,9 @@ def ssh_output(config: RunpodConfig, command: str) -> str:
 def remote_env_prefix(config: RunpodConfig) -> str:
     exports = {
         "HF_HOME": os.environ.get("RUNPOD_HF_HOME", DEFAULT_HF_HOME),
+        # Make the `lib` package importable from src/ without relying on the
+        # editable install being present in the pod environment.
+        "PYTHONPATH": f"{config.remote_dir}/src",
     }
     exports["HF_HUB_CACHE"] = f"{exports['HF_HOME']}/hub"
     exports["TRANSFORMERS_CACHE"] = exports["HF_HOME"]
