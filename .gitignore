@@ -12,5 +12,5 @@ wheels/
 # Local Runpod state
 .runpod.env
 
-# data retrieved during init
-data
+# data retrieved during init (top-level only; not src/lib/data/)
+/data/
