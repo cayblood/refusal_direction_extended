@@ -58,8 +58,10 @@ Colab, that usually means the runtime cache unless you configure Hugging Face
 or your notebook to use mounted Drive storage. In Runpod, use persistent
 storage if you want model caches to survive pod replacement.
 
-Use `notebooks/baseline_colab.ipynb` as the Colab Pro entry point for GPU
-setup, dependency installation, model downloads, and baseline generation.
+Use `notebooks/refusal_direction_colab.ipynb` as the Colab Pro entry point. It
+runs the whole pipeline end to end: GPU setup, dependency installation, model
+downloads, dataset preparation, and every experiment through the cross-scale
+transfer.
 
 ## Prerequisites
 
@@ -162,9 +164,10 @@ disabled so they do not duplicate Ruff.
 
 ## Colab notebook
 
-Open `notebooks/baseline_colab.ipynb` in Colab, enable a GPU runtime, and run
-the cells top to bottom. The notebook uses `uv` directly because Colab
-runtimes are ephemeral and do not need the local `mise` shell integration.
+Open `notebooks/refusal_direction_colab.ipynb` in Colab, enable a GPU runtime
+(and High-RAM for the 3B model), and run the cells top to bottom. The notebook
+uses `uv` directly because Colab runtimes are ephemeral and do not need the
+local `mise` shell integration.
 
 ## Runpod workflow
 
