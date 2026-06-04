@@ -9,6 +9,12 @@ def plot_divergence(
     summary: dict[str, list[float]], model_name: str, output_path: Path
 ) -> None:
     """Plot cosine similarity and relative difference norm across layers."""
+    import os
+
+    # Force a headless backend before importing matplotlib. Some runtimes
+    # (e.g. Colab) export MPLBACKEND=module://matplotlib_inline... which is
+    # invalid in a plain subprocess and crashes matplotlib at import time.
+    os.environ["MPLBACKEND"] = "Agg"
     import matplotlib
 
     matplotlib.use("Agg")

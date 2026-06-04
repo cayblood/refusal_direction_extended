@@ -8,6 +8,11 @@ from typing import Any
 
 
 def plot_sweep(sweep: dict[str, Any], output_path: Path) -> None:
+    import os
+
+    # Force a headless backend before importing matplotlib (Colab exports an
+    # invalid MPLBACKEND that crashes matplotlib at import in a subprocess).
+    os.environ["MPLBACKEND"] = "Agg"
     import matplotlib
 
     matplotlib.use("Agg")
